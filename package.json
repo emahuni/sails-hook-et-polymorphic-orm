@@ -1,0 +1,36 @@
+{
+  "name": "sails-hook-polymorphic-orm",
+  "version": "0.1.6",
+  "description": "Polymorphic associations for Sails ORM.",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/emahuni/sails-hook-polymorphic-orm.git"
+  },
+  "keywords": [
+    "sails",
+    "orm",
+    "polymorphic",
+    "hook",
+    "association"
+  ],
+  "author": "Emmanuel Mahuni",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/emahuni/sails-hook-polymorphic-orm/issues"
+  },
+  "homepage": "https://github.com/emahuni/sails-hook-polymorphic-orm#readme",
+  "sails": {
+    "isHook": true,
+    "hookName": "polymorphicORM"
+  },
+  "devDependencies": {
+    "chai": "^4.1.2",
+    "mocha": "^5.2.0",
+    "sails": "~1.0.0",
+    "sails-hook-orm": "^2.0.1"
+  }
+}
