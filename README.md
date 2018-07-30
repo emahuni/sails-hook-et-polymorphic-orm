@@ -1,15 +1,17 @@
-# Sails-hook-polymorphic-orm
+# Sails-hook-et-polymorphic-orm
 
-[![NPM](https://nodei.co/npm/sails-hook-polymorphic-orm.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/sails-hook-polymorphic-orm/)
+[![NPM](https://nodei.co/npm/sails-hook-et-polymorphic-orm.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/sails-hook-et-polymorphic-orm/)
 
 Hook to add missing polymorphic associations in sails - waterline. The hook patches models to use the normal many to many, one to many etc associations by creating the needed relationships between the models. This means the polymorphism is just normal waterline logic being played to provide polymorphic associations. I hope this gets integrated into waterline, let me know I want to go with it.
+
+[![Donate using Liberapay](https://liberapay.com/assets/widgets/donate.svg)](https://liberapay.com/emahuni/donate)
 
 ## Installation:
 
 Installing the hook is very simple in sails.
 
 ```cmd
-npm install --save sails-hook-polymorphic-orm
+npm install --save sails-hook-et-polymorphic-orm
 ```
 
 That's it.
@@ -18,84 +20,11 @@ That's it.
 
 Well, now the hook will simply patch all polymorphic models with polymorphism.
 
-You can find a complete hook example in the [test folder](https://github.com/emahuni/sails-hook-polymorphic-orm/tree/master/test/app/).
+## Usage
 
-### What is Polymorphic Associations?
+If we had a big app with a Status model that is reffered to by any model in the app this means our status model can belong to many uknown models. writting the relationships in the status model can be very counter intuitive.
 
-As in the tests, let's imagine we have a Status model that can belong to both Person and House models.
-
-Normally you would define an association as follows:
-
-```js
-// api/models/Person.js
-module.exports = {
-  attributes: {
-    // ...
-
-    //  ╔═╗╔═╗╔═╗╔═╗╔═╗╦╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
-    //  ╠═╣╚═╗╚═╗║ ║║  ║╠═╣ ║ ║║ ║║║║╚═╗
-    //  ╩ ╩╚═╝╚═╝╚═╝╚═╝╩╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
-
-    statuses: {
-				collection: "status",
-				via: "person_status",
-    },
-
-  },
-};
-
-```
-then in another model
-
-```js
-// api/models/House.js
-module.exports = {
-  attributes: {
-    // ...
-
-    //  ╔═╗╔═╗╔═╗╔═╗╔═╗╦╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
-    //  ╠═╣╚═╗╚═╗║ ║║  ║╠═╣ ║ ║║ ║║║║╚═╗
-    //  ╩ ╩╚═╝╚═╝╚═╝╚═╝╩╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
-
-    states: {
-				collection: "status",
-				via: "house_states",
-    },
-
-  },
-};
-
-```
-then in status model
-```js
-// api/models/Status.js
-module.exports = {
-  attributes: {
-    // ...
-
-    //  ╔═╗╔═╗╔═╗╔═╗╔═╗╦╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
-    //  ╠═╣╚═╗╚═╗║ ║║  ║╠═╣ ║ ║║ ║║║║╚═╗
-    //  ╩ ╩╚═╝╚═╝╚═╝╚═╝╩╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
-
-    person_status: {
-				model: "person",
-    },
-
-    house_states: {
-        collection: "house",
-        via: "states",
-    },
-
-  },
-};
-
-```
-
-You may say, that's fine, what's wrong with that? Well for many reasons it is limited and can get very complex. The person model doesn't need nor use the house_states attribute nor does the house model use nor need the person_status.
-
-Ok for real use cases the Status model can belong to any models in the app that can have a status... What if our status model can belong to uknown models; that's the key here. If we had a kid model, shop model, family model, community model etc... all these models can have status, heck even a status model can have a status. How are we going to keep track of all those models and populations? If the status model is needed in all models in the app, then the app can easily become blotted and too complex to manage and reason about.  I think you get the picture by now.
-You say well just point in one way, ie: from the other models and put nothing in Status. What if you want to know to which models the status belongs to?
-Here is what the status model can look like just for the mentioned models:
+For example, if we had kid, shop, family, community models in our app that associate themselves with the status model, the following is what you could write in the status model without polymorphic associations:
 
 ```js
 // api/models/Status.js
@@ -106,8 +35,6 @@ module.exports = {
     //  ╔═╗╔═╗╔═╗╔═╗╔═╗╦╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
     //  ╠═╣╚═╗╚═╗║ ║║  ║╠═╣ ║ ║║ ║║║║╚═╗
     //  ╩ ╩╚═╝╚═╝╚═╝╚═╝╩╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
-
-    // in addition to the above
 
     kids: {
         collection: "kid",
@@ -132,12 +59,9 @@ module.exports = {
 };
 
 ```
+For many reasons this is a source of confusion and blotting of code, which makes it very hard to mentain and reason about.
 
-It gets worse. You have populate all those models manually each time, even for the ones the status record doesn't belong to.
-
-
-### Polymorphism to the rescue
-What if we could just create an attribute in the model that automatically reverses and point to all associations that associate with the model? Here is how
+With polymorphic associations this becomes very simple. Just create an attribute in the status model that automatically reverses and points to all associations that associate with the model? Here is how:
 
 ```js
 // api/models/Status.js
@@ -157,9 +81,30 @@ module.exports = {
 
 ```
 
-Just that! The asterix mean that we don't know to whom this belongs, you figure it out at runtime. I call this the polymorphic attribute and this model becomes a polymorphic model.
+Just that! The asterix means that we don't know to whom this belongs, figure out who points here at runtime and create a reverse relationship; thus polymorphing the attribute. The `affiliated` key is the polymorphic attribute and this model becomes a polymorphic model. You can name the polymorphic attribute whatever you choose that makes sense to you it doesn't have to be 'affiliated'. The hook will figure it out and work with it accordingly.
 
-The other models: just put `via: 'affiliated'` instead and stop putting funny prefixes to make them diffent. eg: `person_status` or `house_states`.
+As in the tests, our Status model belongs to both Person and House models, but it doesn't have any reference to either of them.
+
+In the other associating  models: just put `via: 'affiliated'` instead. eg for kid model:
+
+```js
+// api/models/Kid.js
+module.exports = {
+  attributes: {
+    // ...
+
+    //  ╔═╗╔═╗╔═╗╔═╗╔═╗╦╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
+    //  ╠═╣╚═╗╚═╗║ ║║  ║╠═╣ ║ ║║ ║║║║╚═╗
+    //  ╩ ╩╚═╝╚═╝╚═╝╚═╝╩╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
+
+    status: {
+        collection: "status",
+        via: "affiliated",
+    },
+  },
+};
+
+```
 
 ### What happens when we populate?
 
@@ -175,15 +120,74 @@ Clean and intuitive.
 For getting the inverse related data ie: the unknown models' records that associate with this status record:
 
 ```js
-let affiliates = await Status.findPolyPop().sort('label DESC').then((r)=>Status.bundlePolyPopData(r));
+let affiliates = await Status.findPolyPop().sort('label DESC');
+console.log(affiliates);
+// [ { name: 'active',
+//     'affiliated-_-house-_-states': [],
+//     'affiliated-_-person-_-statuses': [],
+//     createdAt: 1532942612454,
+//     updatedAt: 1532942612454,
+//     id: 1,
+//     label: '',
+//     color: 'brown' },
+//   { name: 'inactive',
+//     'affiliated-_-house-_-states': [],
+//     'affiliated-_-person-_-statuses':
+//      [ { createdAt: 1532942470430,
+//          updatedAt: 1532942470430,
+//          id: 1,
+//          firstname: 'boydo',
+//          lastname: 'kamuzu',
+//          dob: 0 } ],
+//     createdAt: 1532942612454,
+//     updatedAt: 1532942612454,
+//     id: 2,
+//     label: '',
+//     color: 'brown' } ]
 ```
-This gets the requested records as usual, but populates the associated models automatically and aggregates all records that point to this status record into the polymorphic attribute, regardless of their model. In fact it will give you each affiliated records keyed with the model name...
+This gets the requested records as usual, but notice the two attributes that it includes in each record. These the relationships that were created by the hook to map polymorphic functionality on the models. They were populated automatically by the polyPop part of `findPolyPop`.
+
+To aggregates all the populated polymorphic records into one dictionary keyed by the polymorphic attribute name use `bundlePolyPopData`. In addition it will give you each affiliated record dictionary keyed with the model name in the aggregation.
+
+```js
+let affiliates = await Status.findPolyPop().sort('label DESC').then(r=>Status.bundlePolyPopData(r));
+console.log(affiliates);
+// [ { name: 'active',
+//     createdAt: 1532942612454,
+//     updatedAt: 1532942612454,
+//     id: 1,
+//     label: '',
+//     color: 'brown',
+//     affiliated: []
+//   },
+//   { name: 'inactive',
+//     createdAt: 1532942612454,
+//     updatedAt: 1532942612454,
+//     id: 2,
+//     label: '',
+//     color: 'brown',
+//     affiliated: [ { person: [ {
+//          createdAt: 1532942470430,
+//          updatedAt: 1532942470430,
+//          id: 1,
+//          firstname: 'boydo',
+//          lastname: 'kamuzu',
+//          dob: 0 } ]
+//      } ]
+// } ]
+```
+
+Remember the `via:"affiliated"` part in the House and Person models? that's what you are getting there as the key.
+
+You can find a complete hook example in the [test folder](https://github.com/emahuni/sails-hook-et-polymorphic-orm/tree/master/test/).
 
 ## API:
 
 All methods are wrappers of their waterline counterparts; they have the same signature except for `streamPolyPop`, which requirs a callback that you pass to it.
 
 The only huge difference is the bundling method that is required at the end of each query. This cleans up the returned records and aggregates them into the polymorphic attribute such as `affiliated` in the above example. I couldn't figure a way to internalise it without modifying waterline. If this get intergrated into waterline that part should happen internally automatically. The reason why I put it outside was because I wanted everything to work just like waterline instance methods with chaining enabled.
+
+I changed the name from `sails-hook-polymorphic-orm` to `sails-hook-et-polymorphic-orm`. The reason was that this hook was being loaded before the orm when installed from npm. In tests and `api/hooks` etc it is loaded well before `orm`. So changing the name to start with an `e` makes sure it is loaded before `orm` that start with an `o` and not after. This is because of the lack of `sails.before` method or any other way to load hooks in a particular order. the only way is to rename the hook to have preceedence alphabetically.
 
 ### bundlePolyPopData (records)
 it only takes 1 argument; the record(s) that have possible polymorphic data that needs aggregation.
