@@ -23,7 +23,11 @@ Well, now the hook will simply patch all polymorphic models with polymorphism.
 ## Usage
 
 If we had a big app with a Status model that is reffered to by any model in the app this means our status model can belong to many uknown models.
-If our app had House and Person models that require back-references(many-many), we create the following models:
+If our app had House and Person models that require back-references(many-many).
+
+### Normal usage without polymorphism
+
+We create the following models:
 
 ```js
 // api/models/House.js
@@ -87,7 +91,7 @@ module.exports = {
 
 ```
 
-Each time we refer to the status model with a via key so that we can have a reverse relationship we have to write the inverse relationship in status otherwise Waterline will throw at us. For example, if we had additional kid, shop, family, community models in our app that associate themselves with the status model, the following is what you should write in the status model without polymorphic associations:
+Each time we refer to the status model with a `via` key we have to write the inverse relationship in the Status model otherwise Waterline will throw at us. For example, if we had additional kid, shop, family and community models in our app that associate themselves with the status model, the following is what you should write in the status model without polymorphic associations:
 
 ```js
 // api/models/Status.js
@@ -122,9 +126,44 @@ module.exports = {
 };
 
 ```
-For many reasons this is a source of confusion and blotting of code, which makes it very hard to mentain and reason about. It's only better if we didn't want to know what status belongs to.
+For many reasons this is a source of confusion and blotting of code, which makes it very hard to mentain and reason about. Especially in this case, a status isn't something you would want to blot like that. Those relationships have nothing to do with each other and the resulting data will just look ugly and blotted:
 
-### using polymorphic associations
+```js
+let statuses = await Status.find().sort('label DESC');
+console.log(statuses);
+// [ { house_states: [],
+//     person_statuses: [],
+//     kid_status: [],
+//     shops: [],
+//     family: [],
+//     community: [],
+//     createdAt: 1532942612454,
+//     updatedAt: 1532942612454,
+//     id: 2,
+//     label: 'inactive',
+//     color: 'grey' },
+//   { house_states: [],
+//     person_statuses: 
+//      [ { createdAt: 1532942470430,
+//          updatedAt: 1532942470430,
+//          id: 1,
+//          firstname: 'Boydho',
+//          lastname: 'Zhangazha',
+//          dob: 0 } ],
+//     kid_status: [],
+//     shops: [],
+//     family: [],
+//     community: [],
+//     createdAt: 1532942612156,
+//     updatedAt: 1532942612156,
+//     id: 1,
+//     label: 'active',
+//     color: 'green' } ]
+```
+
+It's only better if we didn't want to know what status belongs to.
+
+### Using polymorphic associations
 
 With polymorphic associations this becomes very simple. Just create an attribute in the status model that automatically reverses and points to all associations that associate with the model? Here is how:
 
@@ -171,7 +210,7 @@ module.exports = {
 
 ```
 
-### What happens when we populate?
+#### What happens when we populate?
 
 After adding records and doing `addToCollection` on their reletives and we need to find out their associations, we use normal waterline methods for the normal models and other special methods for the polymophic models.
 
@@ -183,7 +222,7 @@ let statuses await Person.find().populate('statuses');
 let state await House.findOne().populate('state');
 ```
 
-Clean and intuitive. Here we just get the normal things find returns, nothing fancy.
+Here we just get the normal things find returns, nothing fancy.
 
 For getting the inverse related data ie: the unknown models' records that associate with this status record:
 
@@ -211,9 +250,9 @@ console.log(affiliates);
 //     label: 'active',
 //     color: 'green' } ]
 ```
-This gets the requested records as usual, but notice the two weird attributes that it includes in each record. These are the relationships that were created by the hook to map polymorphic functionality on the models. They were populated automatically by the polyPop part of `findPolyPop`.
+This gets the requested records as usual, but notice the two weird attributes that it includes in each record, which also look ugly. These are the relationships that were created by the hook to map polymorphic functionality on the models. They were populated automatically by the polyPop part of `findPolyPop`.
 
-To aggregate all the populated polymorphic records into one dictionary keyed by the polymorphic attribute name use `bundlePolyPopData`. In addition it will give you each affiliated record dictionary keyed with the model name in the aggregation.
+To cleanup and aggregate all the populated polymorphic records into one dictionary keyed by the polymorphic attribute name use `bundlePolyPopData`. In addition it will give you each affiliated record dictionary keyed with the model name in the aggregation.
 
 ```js
 let affiliates = await Status.findPolyPop().sort('label DESC').then(r=>Status.bundlePolyPopData(r));
@@ -241,18 +280,24 @@ console.log(affiliates);
 // } ]
 ```
 
-Remember the `via:"affiliated"` part in the House and Person models? that's what you are getting there as the aggregate key.
+Clean and intuitive. Remember the `via:"affiliated"` part in the House and Person models? that's what you are getting there as the aggregate key.
 
 You can find a complete hook example in the [test folder](https://github.com/emahuni/sails-hook-et-polymorphic-orm/tree/master/test/).
 
 ## API:
 
-All methods are wrappers of their waterline counterparts; they have the same signature.
+### findPolyPop ()
+### findOnePolyPop ()
+### streamPolyPop ()
 
-The only huge difference is the aggregating method `bundlePolyPopData` that is required at the end of each query to aggregate polymorphic records. This cleans up the returned records and aggregates them into the polymorphic attribute such as `affiliated` in the above example. I couldn't figure a way to internalise it without modifying waterline. If this get intergrated into waterline that part should happen within populate.
+All these methods are wrappers of their waterline counterparts; they have the same signatures.
+
+The only huge difference is the aggregating method `bundlePolyPopData`:
 
 ### bundlePolyPopData (records)
-it only takes 1 argument; the record(s) that have possible polymorphic data that needs aggregation.
+it only takes 1 argument; the record(s) that have possible polymorphic data that need aggregation.
+
+It is required at the end of each query to aggregate polymorphic records. This cleans up the returned records and aggregates them into the polymorphic attribute such as `affiliated` in the above example. I couldn't figure a way to internalise it without modifying waterline. If this get intergrated into waterline that part should happen within populate.
 
 ## Development
 
