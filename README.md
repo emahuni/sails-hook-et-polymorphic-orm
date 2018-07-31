@@ -25,7 +25,7 @@ Well, now the hook will simply patch all polymorphic models with polymorphism.
 If we had a big app with a Status model that is reffered to by any model in the app this means our status model can belong to many uknown models.
 If our app had House and Person models that require back-references(many-many).
 
-### Normal usage without polymorphism
+### Normal associations without polymorphism
 
 We create the following models:
 
