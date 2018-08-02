@@ -2,7 +2,7 @@
 
 [![NPM](https://nodei.co/npm/sails-hook-et-polymorphic-orm.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/sails-hook-et-polymorphic-orm/)
 
-Hook to add missing polymorphic associations in sails - waterline. The hook patches models to use the normal many to many, one to many etc associations by creating the needed relationships between the models. This means the polymorphism is just normal waterline logic being played to provide polymorphic associations. I hope this gets integrated into waterline, let me know I want to go with it.
+Hook to add missing polymorphic associations in sails - waterline. The hook patches models to use the normal many to many, one to many etc associations by creating the needed relationships between the models. This means the polymorphism is just normal waterline logic being played to provide polymorphic associations. I hope this gets integrated into waterline, let me know if there is any current efforts I want to go with it. If not i may do a PR soon.
 
 [![Donate using Liberapay](https://liberapay.com/assets/widgets/donate.svg)](https://liberapay.com/emahuni/donate)
 
@@ -211,10 +211,9 @@ module.exports = {
 ```
 
 #### What happens when we populate?
+After adding records and doing `addToCollection` on their reletives, we need to find out their associations. To get the related polymorphic records the hook populates the polymophic relationships when we use a special populate syntax.
 
-After adding records and doing `addToCollection` on their reletives and we need to find out their associations, we use normal waterline methods for the normal models and other special methods for the polymophic models.
-
-For getting status records for any model that associates itself with status, just do the normal (for simplicity we will stick with House and Person models only):
+For example, to get status records for any model that associates itself with status, just do the normal (for simplicity we will stick with House and Person models only):
 
 ```js
 let statuses await Person.find().populate('statuses');
@@ -227,39 +226,11 @@ Here we just get the normal things find returns, nothing fancy.
 For getting the inverse related data ie: the unknown models' records that associate with this status record:
 
 ```js
-let affiliates = await Status.findPolyPop().sort('label DESC');
-console.log(affiliates);
-// [ { 'affiliated-_-house-_-states': [],
-//     'affiliated-_-person-_-statuses': [],
-//     createdAt: 1532942612454,
-//     updatedAt: 1532942612454,
-//     id: 2,
-//     label: 'inactive',
-//     color: 'grey' },
-//   { 'affiliated-_-house-_-states': [],
-//     'affiliated-_-person-_-statuses':
-//      [ { createdAt: 1532942470430,
-//          updatedAt: 1532942470430,
-//          id: 1,
-//          firstname: 'Boydho',
-//          lastname: 'Zhangazha',
-//          dob: 0 } ],
-//     createdAt: 1532942612156,
-//     updatedAt: 1532942612156,
-//     id: 1,
-//     label: 'active',
-//     color: 'green' } ]
-```
-This gets the requested records as usual, but notice the two weird attributes that it includes in each record, which also look ugly. These are the relationships that were created by the hook to map polymorphic functionality on the models. They were populated automatically by the polyPop part of `findPolyPop`.
-
-To cleanup and aggregate all the populated polymorphic records into one dictionary keyed by the polymorphic attribute name use `bundlePolyPopData`. In addition it will give you each affiliated record dictionary keyed with the model name in the aggregation.
-
-```js
-let affiliates = await Status.findPolyPop().sort('label DESC').then(r=>Status.bundlePolyPopData(r));
+let affiliates = await Status.find().sort('label DESC').populate('*');
 console.log(affiliates);
 // [ { createdAt: 1532942612454,
 //     updatedAt: 1532942612454,
-//     id: 2,
+//     id: 2,ttt
 //     label: 'inactive',
 //     color: 'grey',
 //     affiliated: [],
@@ -280,28 +251,53 @@ console.log(affiliates);
 // } ]
 ```
 
-Clean and intuitive. Remember the `via:"affiliated"` part in the House and Person models? that's what you are getting there as the aggregate key.
+Clean and intuitive right?
+
+The hook cleanups and aggregates all the populated polymorphic records into one dictionary keyed by the polymorphic attribute name. In addition it will give you each affiliated record dictionary keyed with the model name in the aggregation. Remember the `via:"affiliated"` part in the House and Person models? that's what you are getting there as the aggregate key.
 
 You can find a complete hook example in the [test folder](https://github.com/emahuni/sails-hook-et-polymorphic-orm/tree/master/test/).
 
 ## API:
 
-### findPolyPop ()
-### findOnePolyPop ()
-### streamPolyPop ()
+The hook wraps model methods and model instance methods so that it can get the polymorphic records and manipulate the results. Every other method has not changed except for populate which takes additional syntax. This is only available on polymorphic models only.
 
-All these methods are wrappers of their waterline counterparts; they have the same signatures.
+### populate method
 
-The only huge difference is the aggregating method `bundlePolyPopData`:
+Populate is where the hook gets the associated model records and cleans up.
 
-### bundlePolyPopData (records)
-it only takes 1 argument; the record(s) that have possible polymorphic data that need aggregation.
+#####  populate('*')
 
-It is required at the end of each query to aggregate polymorphic records. This cleans up the returned records and aggregates them into the polymorphic attribute such as `affiliated` in the above example. I couldn't figure a way to internalise it without modifying waterline. If this get intergrated into waterline that part should happen within populate.
+Get all polymorphic associated records regardless of the model(s) it is associated with, ie: it populates every polymorphic relashionship automatically more like populateAll, but for polymorphic associations only. Meaning if you had any other associations defined in status that were not polymorphic, they don't get populated.
+
+##### populate('*', models)
+
+- models: string or array of polymorphic models to populate. Why models, we are being virgue about the association. We don't know much about the relationships just that certain models are associated with it. So this is a way of cutting on processing and database queries when populating for specific models we know are associated with this polymorphic model and want just those.
+
+You can pass a model name eg: `'person'` as a string or you can pass an array of models eg: `['person', 'house']`
+
+eg:
+```js
+  await Status.find().populate('*', ['house', 'person']);
+```
+will leave out other models, eg: kid, community... and return only house and person polymorphic related records.
+
+
+##### populate('*', subcriteria, [models])
+
+- subcriteria: normal waterline subcriteria, see waterline subcriteria for more details in sails documentation under reference.
+
+eg:
+
+```js
+  await Status.find().populate('*', {firstname: 'Boydho'});
+```
+- models: optional specific models to populate, see above.
 
 ## Development
 
-I changed the name from `sails-hook-polymorphic-orm` to `sails-hook-et-polymorphic-orm`. The reason was that this hook was being loaded before the orm when installed from npm. In tests and `api/hooks` etc it is loaded well before `orm`. So changing the name to start with an `e` makes sure it is loaded before `orm` that start with an `o` and not after. This is because of the lack of `sails.before` method or any other way to load hooks in a particular order. the only way is to rename the hook to have preceedence alphabetically.
+I changed the name from `sails-hook-polymorphic-orm` to `sails-hook-et-polymorphic-orm`. The reason was that this hook was being loaded before the orm when installed from npm. In tests and `api/hooks` etc it is loaded well before `orm`.
+
+So changing the name to start with an `e` makes sure it is loaded before `orm` that start with an `o` and not after. I did this hack because of the lack of `sails.before` method or any other way to load hooks in a particular order. The only way I figured is to rename the hook to have preceedence alphabetically.
 
 ### Contributing
   
