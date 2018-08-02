@@ -72,12 +72,6 @@ describe('Basic tests ::', function() {
             it('has polymorphic attributes patched in', async function (){
                 expect(Status.attributes, 'No polymorphed attributes according to expected associations').to.be.an('object').that.includes.all.keys(Status.polymorphicAssociations);
             });
-
-            context.skip('has polyPop functions - polymorphic PopulateAll functions', function (){
-                it('has polyPop', async function (){
-                    expect(Status).to.be.an('object').that.has.own.property('polyPop');
-                });
-            });
         });
     })
 
@@ -115,7 +109,7 @@ describe('Basic tests ::', function() {
 
         // the following are progressive tests, meaning each test modifies the db and doesn't clean up
         // the next tests will use those modifications
-        it(`creates an association between people[0] => statuses[2]`, async function (){
+        it(`creates an association between people[0] => statuses[2] and successfully uses then`, async function (){
             await Person.addToCollection(people[0].id, 'statuses', statuses[2].id);
 
             // now assert it
@@ -125,80 +119,97 @@ describe('Basic tests ::', function() {
             });
         });
         
-        it(`can find a polymorphic associations between people[0,2] <= statuses[2] and populate the results`, async function (){
+        it(`can find a record's polymorphic associations between people[0,2] <= statuses[2] and populate the results and successfully uses await`, async function (){
             // add another association with status 2
             await Person.addToCollection(people[2].id, 'statuses', statuses[2].id);
             
             // polymorphic methods are only found on polymorphic models chete
-            let awaitedResult = await Status.findPolyPop(statuses[2].id).then(r=>Status.bundlePolyPopData(r)).then(r=>{
-                // bundlePolyPopData normalizes the polymorphic associations data into the polymorphic attribute as an array
+            let r = await Status.find(statuses[2].id).populate('*');
+            
+            // log.debug('polymorphic association result: %o', r);
+            // 'affiliated' is the polymorphic association key defined in the statuses model. see statuses model definition in test/app/api/models/Statuses.js
+            expect(r[0].affiliated[0].person).to.be.an('array').that.has.lengthOf(2);
                 
-                // log.debug('polymorphic association result: %o', r);
-                // 'affiliated' is the polymorphic association key defined in the statuses model. see statuses model definition in test/app/api/models/Statuses.js
-                expect(r[0].affiliated[0].person).to.be.an('array').that.has.lengthOf(2);
-                
-                // return it so that it can be used by the awaiting var awaitingResult
-                return r;
-            });
-
-            // log.debug('awaitedResult: ', awaitedResult);
-            expect(awaitedResult).to.be.an('array');
         });
 
-        it('works with modifiers - used sort successfully', async function (){
+        it('uses query modifiers successfully', async function (){
             // should sort the statuses in reverse order on the name key
-            let awaitedResult = await Status.findPolyPop().sort('label DESC').then(r => Status.bundlePolyPopData(r));
-
+            let awaitedResult = await Status.find().sort('label DESC').populate('*');
             // log.debug('awaitedResult: ', awaitedResult);
             
             // the sort should have worked, if status Zero is coming on result 0
             expect(awaitedResult[0].label).to.be.equal('Zero');
-            // make sure we still have our bundling done right: see previous test for details on the association
-            expect(awaitedResult[0].affiliated[0].person[1].firstname).to.be.equal(people[2].firstname); 
         });
+
         
-        it(`can find ONE polymorphic association between people[3] <= statuses[1]`, async function (){
-            await Person.addToCollection(people[3].id, 'statuses', statuses[1].id);
+        context(`findONE #: `, function (){
+            before(async function (){
+                await Person.addToCollection(people[3].id, 'statuses', statuses[1].id);
+                await House.addToCollection(houses[2].id, 'states', statuses[1].id);
+            });
+            
+            it(`can findOne all polymorphic associations:`, async function (){
+                // this is the same as findOne
+                let r = await Status.findOne(statuses[1].id).populate('*');
 
-            // this is the same as findOne
-            let awaitedResult = await Status.findOnePolyPop(statuses[1].id).then(r=>{
-                // another way of using bundlePolyPopData. we are doing this here coz i don't know how to hook onto the model instance and do this internally without modifying waterline
-                // this is supposed to be done internally just before the results are returned into userland code
-                r = Status.bundlePolyPopData(r);
-
+                // log.debug('polymorphic association result: %o', r);
+            
                 // since this is a single record, it will be an obj and not an array
                 expect(r).to.be.an('object');
-                expect(r.affiliated[0].person[0].firstname).to.be.equal(people[3].firstname);
-
-                return r;
+                expect(r.affiliated).to.be.lengthOf(2);
             });
+            
+        });
 
-            // log.debug('awaitedResult: ', awaitedResult);
-            expect(awaitedResult).to.be.an('object');
+        context(`Populate #`, function () {
+            it(`Populates a specific model's polymorphic association(s) only: - string form`, async function (){
+                // this is the same as findOne
+                let r = await Status.findOne(statuses[1].id).populate('*', 'house');
+
+                // log.debug('polymorphic association result: %o', r);
+            
+                // since this is a single record, it will be an obj and not an array
+                expect(r).to.be.an('object');
+                expect(r.affiliated[0].house).to.be.ok;
+            });
+            
+            it(`Populates specific models' polymorphic association(s) only - array form:`, async function (){
+                // this is the same as findOne
+                let r = await Status.findOne(statuses[1].id).populate('*', ['person','house']);
+
+                // log.debug('polymorphic association result: %o', r);
+            
+                // since this is a single record, it will be an obj and not an array
+                expect(r).to.be.an('object');
+                expect(r.affiliated).to.be.lengthOf(2);
+            });
+            
+            it(`Populates ... and applies subcriteria:`, async function (){
+                // we are going to get person model record only
+                let r = await Status.findOne(statuses[1].id).populate('*', {id: people[3].id}, ['person','house']);
+
+                // log.debug('polymorphic association result: %o', r);
+            
+                // since this is a single record, it will be an obj and not an array
+                expect(r).to.be.an('object');
+                expect(r.affiliated).to.be.lengthOf(1);
+            });
         });
 
         
         
-        it(`can find a polymorphic associations between houses[1] <= statuses[2] and people[0,2] <= statuses[2] and populate the results`, async function (){
+        it(`can find a record's polymorphic associations between houses[1] <= statuses[2] and people[0,2] <= statuses[2] and populate the results`, async function (){
             // add another association with status 2
             await House.addToCollection(houses[1].id, 'states', statuses[2].id);
             
             // polymorphic methods are only found on polymorphic models chete
-            let awaitedResult = await Status.findPolyPop(statuses[2].id).then(r=>Status.bundlePolyPopData(r)).then(r=>{
-                // bundlePolyPopData normalizes the polymorphic associations data into the polymorphic attribute as an array
-                
-                // log.debug('polymorphic association result: %o', r);
-                // 'affiliated' is the polymorphic association key defined in the statuses model. see statuses model definition in test/app/api/models/Statuses.js
-                expect(r[0].affiliated).to.be.an('array').that.has.lengthOf(2);
-                expect(r[0].affiliated[0].house).to.be.an('array').that.has.lengthOf(1);
-                expect(r[0].affiliated[1].person).to.be.an('array').that.has.lengthOf(2);
-                
-                // return it so that it can be used by the awaiting var awaitingResult
-                return r;
-            });
-
-            // log.debug('awaitedResult: ', awaitedResult);
-            expect(awaitedResult).to.be.an('array');
+            let r = await Status.find(statuses[2].id).populate('*');
+            
+            // log.debug('polymorphic association result: %o', r);
+            // 'affiliated' is the polymorphic association key defined in the statuses model. see statuses model definition in test/app/api/models/Statuses.js
+            expect(r[0].affiliated).to.be.an('array').that.has.lengthOf(2);
+            expect(r[0].affiliated[0].house).to.be.an('array').that.has.lengthOf(1);
+            expect(r[0].affiliated[1].person).to.be.an('array').that.has.lengthOf(2);
         });
         
     });
