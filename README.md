@@ -41,7 +41,7 @@ module.exports = {
 
     state: {
         collection: "status",
-        via: "house_states",
+        via: "house_state",
     },
   },
 };
@@ -78,7 +78,7 @@ module.exports = {
     //  ╠═╣╚═╗╚═╗║ ║║  ║╠═╣ ║ ║║ ║║║║╚═╗
     //  ╩ ╩╚═╝╚═╝╚═╝╚═╝╩╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
 
-    house_states: {
+    house_state: {
         model: "person",
     },
     
@@ -91,7 +91,7 @@ module.exports = {
 
 ```
 
-Each time we refer to the status model with a `via` key we have to write the inverse relationship in the Status model otherwise Waterline will throw at us. For example, if we had additional kid, shop, family and community models in our app that associate themselves with the status model, the following is what you should write in the status model without polymorphic associations:
+Each time we refer to the status model with a `via` key we have to write the inverse relationship in the Status model otherwise Waterline will throw at us. For example, if we had additional kid, shop, family and community models in our app that associate themselves with the status model, in addition to the above the following is what you should write in the status model without polymorphic associations:
 
 ```js
 // api/models/Status.js
@@ -103,6 +103,8 @@ module.exports = {
     //  ╠═╣╚═╗╚═╗║ ║║  ║╠═╣ ║ ║║ ║║║║╚═╗
     //  ╩ ╩╚═╝╚═╝╚═╝╚═╝╩╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
 
+    // ...
+    
     kid_status: {
         collection: "kid",
         via: "status",
@@ -129,20 +131,9 @@ module.exports = {
 For many reasons this is a source of confusion and blotting of code, which makes it very hard to mentain and reason about. Especially in this case, a status isn't something you would want to blot like that. Those relationships have nothing to do with each other and the resulting data will just look ugly and blotted:
 
 ```js
-let statuses = await Status.find().sort('label DESC');
+let statuses = await Status.find().sort('label DESC').populateAll();
 console.log(statuses);
-// [ { house_states: [],
-//     person_statuses: [],
-//     kid_status: [],
-//     shops: [],
-//     family: [],
-//     community: [],
-//     createdAt: 1532942612454,
-//     updatedAt: 1532942612454,
-//     id: 2,
-//     label: 'inactive',
-//     color: 'grey' },
-//   { house_states: [],
+// [   house_state: [],
 //     person_statuses: 
 //      [ { createdAt: 1532942470430,
 //          updatedAt: 1532942470430,
@@ -211,9 +202,9 @@ module.exports = {
 ```
 
 #### What happens when we populate?
-After adding records and doing `addToCollection` on their reletives, we need to find out their associations. To get the related polymorphic records the hook populates the polymophic relationships when we use a special populate syntax.
+After adding records and doing `addToCollection` on their reletives, we need to find out their associations.
 
-For example, to get status records for any model that associates itself with status, just do the normal (for simplicity we will stick with House and Person models only):
+To get status records for any model that associates itself with status, just do the normal (for brevity we will stick with House and Person models):
 
 ```js
 let statuses await Person.find().populate('statuses');
@@ -230,7 +221,7 @@ let affiliates = await Status.find().sort('label DESC').populate('*');
 console.log(affiliates);
 // [ { createdAt: 1532942612454,
 //     updatedAt: 1532942612454,
-//     id: 2,ttt
+//     id: 2,
 //     label: 'inactive',
 //     color: 'grey',
 //     affiliated: [],
@@ -271,15 +262,15 @@ Get all polymorphic associated records regardless of the model(s) it is associat
 
 ##### populate('*', models)
 
-- models: string or array of polymorphic models to populate. Why models, we are being virgue about the association. We don't know much about the relationships just that certain models are associated with it. So this is a way of cutting on processing and database queries when populating for specific models we know are associated with this polymorphic model and want just those.
+- models: string or array of polymorphic models to populate. Why models, we are being virgue about the association. We don't know much about the relationships just that certain models are associated with it. So this is a way of cutting on processing and database queries when populating for specific models we know are associated with this polymorphic model and just want those.
 
 You can pass a model name eg: `'person'` as a string or you can pass an array of models eg: `['person', 'house']`
 
 eg:
 ```js
-  await Status.find().populate('*', ['house', 'person']);
+  await Status.find().populate('*', ['house', 'family']);
 ```
-will leave out other models, eg: kid, community... and return only house and person polymorphic related records.
+looking at the full imaginary app above, the example will leave out other polymorphic relationships from other models, eg: kid, person, community... and return only house and family polymorphic records related to this status record.
 
 
 ##### populate('*', subcriteria, [models])
