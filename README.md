@@ -2,6 +2,10 @@
 
 [![NPM](https://nodei.co/npm/sails-hook-et-polymorphic-orm.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/sails-hook-et-polymorphic-orm/)
 
+
+THIS HOOK HAS BEEN DEPRECATED IN FAVOUR OF [Deep ORM](https://npmjs.com/package/sails-hook-deep-orm), it has all the todo features implemented plus more.
+
+
 Hook to add missing polymorphic associations in sails - waterline. The hook patches models to use the normal many to many, one to many etc associations by creating the needed relationships between the models. This means the polymorphism is just normal waterline logic being played to provide polymorphic associations. I hope this gets integrated into waterline, let me know if there is any current efforts I want to go with it. If not i may do a PR soon.
 
 [![Donate using Liberapay](https://liberapay.com/assets/widgets/donate.svg)](https://liberapay.com/emahuni/donate)
