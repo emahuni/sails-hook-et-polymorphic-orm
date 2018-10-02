@@ -1,6 +1,6 @@
 {
   "name": "sails-hook-et-polymorphic-orm",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Emanimation Technologies Polymorphic associations for Sails ORM.",
   "main": "index.js",
   "scripts": {
